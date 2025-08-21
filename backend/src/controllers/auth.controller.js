@@ -15,6 +15,10 @@ export const registerUser = expressAsyncHandler(async (req, res, next) => {
     try {
         const { name, email, password, role, gurdianName, gurdianNumber } = req.body;
 
+        // validation
+        if (!name || !email || !password || !role) {
+            return res.status(400).json({ error: "All fields are required" });
+        }
         // check for existing user
         const existingUser = await UserModel.findOne({ email });
         if (existingUser) {
@@ -31,7 +35,7 @@ export const registerUser = expressAsyncHandler(async (req, res, next) => {
         // send otp to user
         const emailSent = await sendOtpEmail(email, name, otp);
 
-        if (emailSent) {
+        if (emailSent.success) {
             // create user
             const user = await UserModel.create({
                 name,
@@ -74,7 +78,7 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
         }
 
         // check if otp is correct
-        if (user.otp !== otp) {
+        if (user.otp.toString() !== otp) {
             return res.status(400).json({ error: "Invalid OTP" });
         }
 
@@ -85,7 +89,15 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
 
         // generate token
         const token = generateToken(user._id);
-        res.status(200).json({ message: "User verified successfully", token });
+        res.status(200).json({
+            message: "User verified successfully", token,
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                guardian: user.guardian
+            }
+        });
 
     } catch (error) {
         console.log("Error in verify-user controller : " + error);
@@ -115,7 +127,15 @@ export const loginUser = expressAsyncHandler(async (req, res, next) => {
         }
         // generate token
         const token = generateToken(user._id);
-        res.status(200).json({ message: "Login successful", token });
+        res.status(200).json({
+            message: "Login successful", token,
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                guardian: user.guardian
+            }
+        });
 
     } catch (error) {
         console.log("Error in login controller : " + error);
@@ -133,9 +153,12 @@ export const sendResetPasswordOtp = expressAsyncHandler(async (req, res, next) =
     if (!user) {
         return res.status(400).json({ error: "User not found" });
     }
+    if (user.otp) {
+        return res.status(400).json({ error: "OTP already sent, check your email" });
+    }
     const otp = Math.floor(100000 + Math.random() * 900000);
     const emailSent = await sendOtpEmail(email, user.name, otp);
-    if (emailSent) {
+    if (emailSent.success) {
         user.otp = otp;
         await user.save();
         res.status(200).json({ message: "OTP sent successfully, check your email" });
@@ -155,7 +178,7 @@ export const resetPassword = expressAsyncHandler(async (req, res, next) => {
     if (!user) {
         return res.status(400).json({ error: "User not found" });
     }
-    if (user.otp !== otp) {
+    if (user.otp.toString() !== otp) {
         return res.status(400).json({ error: "Invalid OTP" });
     }
 
@@ -201,16 +224,7 @@ export const checkAdmin = expressAsyncHandler(async (req, res, next) => {
         if (!user) {
             return res.status(401).json({ message: "Unauthorized, user not found" });
         }
-        res.status(200).json({
-            message: "Admin Authorized",
-            user: {
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                isVerified: user.isVerified,
-                guardian: user.guardian
-            }
-        });
+        res.status(200).json({ message: "Admin Authorized" });
     } catch (error) {
         console.log("Error in check-admin controller : " + error);
         next(error);
