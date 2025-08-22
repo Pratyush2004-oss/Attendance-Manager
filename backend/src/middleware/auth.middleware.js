@@ -57,3 +57,36 @@ export const requireAdmin = expressAsyncHandler(async (req, res, next) => {
     }
 });
 
+export const VerifyTeacher = expressAsyncHandler(async (req, res, next) => {
+    try {
+        const currentUser = req.user;
+        if (!currentUser) {
+            return res.status(401).json({ message: "Unauthorized, user not found" });
+        }
+        const isTeacher = currentUser.role === "teacher";
+        if (!isTeacher) {
+            return res.status(401).json({ message: "Unauthorized, access denied" });
+        }
+        next();
+    } catch (error) {
+        console.log("Error in exportVerifyTeacher middleware: " + error);
+        next(error);
+    }
+});
+
+export const VerifyStudent = expressAsyncHandler(async (req, res, next) => {
+    try {
+        const currentUser = req.user;
+        if (!currentUser) {
+            return res.status(401).json({ message: "Unauthorized, user not found" });
+        }
+        const isStudent = currentUser.role === "student";
+        if (!isStudent) {
+            return res.status(401).json({ message: "Unauthorized, access denied" });
+        }
+        next();
+    } catch (error) {
+        console.log("Error in exportVerifyStudent middleware: " + error);
+        next(error);
+    }
+});
