@@ -5,6 +5,7 @@ import { ENV } from './config/env.js';
 
 // importing routes
 import authRoutes from './routes/auth.route.js';
+import batchRoutes from './routes/batchs.route.js';
 
 
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = ENV.PORT;
 
 app.use('/api/auth', authRoutes);
+app.use('/api/batch', batchRoutes);
 
 app.use((err, req, res, next) => {
     console.error("Unhandled error: ", err);

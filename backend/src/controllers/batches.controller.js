@@ -1,6 +1,7 @@
 import expressasyncHandler from "express-async-handler";
 import BatchModel from "../models/batches.model.js";
 import UserModel from "../models/auth.model.js";
+import mongoose from "mongoose";
 
 // get-student list for the teacher so that they can add students to the batch
 export const getAllStudentList = expressasyncHandler(async (req, res, next) => {
@@ -9,6 +10,18 @@ export const getAllStudentList = expressasyncHandler(async (req, res, next) => {
         return res.status(200).json({ students });
     } catch (error) {
         console.log("Error in getAllStudentList controller: " + error);
+        next(error);
+    }
+})
+
+// get student by student id
+export const getStudentById = expressasyncHandler(async (req, res, next) => {
+    try {
+        const { studentId } = req.body;
+        const student = await UserModel.findById(studentId).select("_id name email guardian");
+        return res.status(200).json({ student });
+    } catch (error) {
+        console.log("Error in getStudentById controller: " + error);
         next(error);
     }
 })
@@ -67,7 +80,7 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
             return res.status(400).json({ message: "Batch ID is required" });
         }
 
-        if (!studentIds || studentIds.length === 0) {
+        if (!studentIds) {
             return res.status(400).json({ message: "At least one student ID is required" });
         }
 
@@ -80,28 +93,26 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
         if (batch.teacherId.toString() !== user._id.toString()) {
             return res.status(403).json({ message: "You are not authorized to add students to this batch" });
         }
-        const validStudentsIds = [];
 
         for (const studentId in studentIds) {
-            const student = await UserModel.findById(studentId);
-            if (student.role === "student" && student.isVerified) {
-                validStudentsIds.push(studentId);
-            }
-        }
-
-        // validate the ids provided are of students and they are verified also
-        for (const studentId of validStudentsIds) {
-            if (!batch.students.includes(studentId)) {
-
-                batch.students.push(studentId);
-            }
-            else {
+            if (mongoose.Types.ObjectId.isValid(studentIds[studentId])) {
+                const objectId = new mongoose.Types.ObjectId(studentIds[studentId]);
+                const student = await UserModel.findById(objectId);
+                if (student) {
+                    if (student.role === "student" && student.isVerified) {
+                        if (!batch.students.includes(student._id)) {
+                            batch.students.push(student._id);
+                        }
+                    }
+                }
+            } else {
                 continue;
             }
         }
+
         await batch.save();
 
-        return res.status(200).json({ message: "Students added to batch successfully" });
+        return res.status(200).json({ message: "All Valid Students added to batch successfully, Invalid enteries are ignored" });
 
     } catch (error) {
         console.log("Error in addStudentsByTeacher controller: " + error);
@@ -180,7 +191,7 @@ export const deleteStudentFromBatch = expressasyncHandler(async (req, res, next)
 
         // todo: update all the attendance of the student for the perticular batch
 
-        
+
         batchToUpdate.students.pull(studentId);
         await batchToUpdate.save();
 
@@ -237,7 +248,7 @@ export const getBatchByIdForStudent = expressasyncHandler(async (req, res, next)
 export const getAllBatchesForStudent = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
-        const batches = await BatchModel.find({ students: { $in: [user._id] } })
+        const batches = await BatchModel.find({ students: { $in: [user._id] } }).select("_id name teacherId").sort({ createdAt: -1 }).populate("teacherId", { name: 1, email: 1 });
 
         return res.status(200).json({ batches });
     } catch (error) {
