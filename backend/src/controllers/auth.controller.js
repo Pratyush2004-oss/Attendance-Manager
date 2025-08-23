@@ -13,10 +13,10 @@ const generateToken = (id) => {
 
 export const registerUser = expressAsyncHandler(async (req, res, next) => {
     try {
-        const { name, email, password, role, gurdianName, gurdianNumber } = req.body;
+        const { name, email, password, Organization, role, gurdianName, gurdianNumber } = req.body;
 
         // validation
-        if (!name || !email || !password || !role) {
+        if (!name || !email || !password || !role || !Organization) {
             return res.status(400).json({ error: "All fields are required" });
         }
         // check for existing user
@@ -37,7 +37,7 @@ export const registerUser = expressAsyncHandler(async (req, res, next) => {
 
         if (emailSent.success) {
             // create user
-            const user = await UserModel.create({
+            await UserModel.create({
                 name,
                 email,
                 password: hashedPassword,
@@ -46,9 +46,9 @@ export const registerUser = expressAsyncHandler(async (req, res, next) => {
                     name: gurdianName,
                     number: gurdianNumber
                 },
+                Organization,
                 otp
             });
-
             res.status(201).json({ message: "Verification email sent, check your email and verify your account" });
         }
         else {

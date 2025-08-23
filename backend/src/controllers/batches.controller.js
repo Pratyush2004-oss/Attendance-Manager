@@ -2,11 +2,13 @@ import expressasyncHandler from "express-async-handler";
 import BatchModel from "../models/batches.model.js";
 import UserModel from "../models/auth.model.js";
 import mongoose from "mongoose";
+import AttendanceModel from "../models/attendance.model.js";
 
-// get-student list for the teacher so that they can add students to the batch
+// get-student list of the Organization for the teacher so that they can add students to the batch
 export const getAllStudentList = expressasyncHandler(async (req, res, next) => {
     try {
-        const students = await UserModel.find({ role: "student", isVerified: true }).select("_id name email guardian");
+        const user = req.user;
+        const students = await UserModel.find({ role: "student", isVerified: true, organization: { $in: user.organization } }).select("_id name email guardian");
         return res.status(200).json({ students });
     } catch (error) {
         console.log("Error in getAllStudentList controller: " + error);
@@ -62,17 +64,21 @@ export const getAllBatchesByName = expressasyncHandler(async (req, res, next) =>
 export const createBatch = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
-        const { name } = req.body;
+        const { name, Organization } = req.body;
 
-        if (!name) {
-            return res.status(400).json({ message: "Batch name is required" });
+        if (!name || !Organization) {
+            return res.status(400).json({ message: "Batch name and Organization is required" });
+        }
+
+        if (!user.organization.includes(Organization)) {
+            return res.status(400).json({ message: "This Organization is not associated with your account" });
         }
 
         const batch = await BatchModel.find({
             teacherId: user._id,
-            name: name
-        })
-            .populate("teacherId");
+            name: name,
+            Organization: { $in: user.organization }
+        });
 
         if (batch.length > 0) {
             return res.status(400).json({ message: "Batch name already exists" });
@@ -81,7 +87,8 @@ export const createBatch = expressasyncHandler(async (req, res, next) => {
         const newBatch = await BatchModel.create({
             name,
             teacherId: user._id,
-            batchJoiningCode
+            batchJoiningCode,
+            Organization
         });
         return res.status(201).json({ message: "Batch created successfully", batch: newBatch });
     } catch (error) {
@@ -119,7 +126,7 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
                 const objectId = new mongoose.Types.ObjectId(studentIds[studentId]);
                 const student = await UserModel.findById(objectId);
                 if (student) {
-                    if (student.role === "student" && student.isVerified) {
+                    if (student.role === "student" && student.isVerified && student.organization.includes(batch.Organization)) {
                         if (!batch.students.includes(student._id)) {
                             batch.students.push(student._id);
                         }
@@ -147,6 +154,7 @@ export const addStudentUsingCode = expressasyncHandler(async (req, res, next) =>
         const user = req.user;
         const { batchJoiningCode, batchId } = req.body;
 
+
         if (!batchJoiningCode || !batchId) {
             return res.status(400).json({ message: "Batch joining code and batch ID are required" });
         }
@@ -155,6 +163,11 @@ export const addStudentUsingCode = expressasyncHandler(async (req, res, next) =>
 
         if (!batch) {
             return res.status(404).json({ message: "Batch not found" });
+        }
+
+        // check if the student and batch are in the same organization
+        if (!user.organization.includes(batch.Organization)) {
+            return res.status(400).json({ message: "You are not authorized to add students to this batch" });
         }
 
         if (batch.students.includes(user._id)) {
@@ -210,7 +223,14 @@ export const deleteStudentFromBatch = expressasyncHandler(async (req, res, next)
         }
 
         // todo: update all the attendance of the student for the perticular batch
-
+        await AttendanceModel.updateMany({
+            batchId: batchId,
+            "records.studentId": studentId
+        }, {
+            $pull: {
+                records: { studentId: studentId }
+            }
+        })
 
         batchToUpdate.students.pull(studentId);
         await batchToUpdate.save();
@@ -222,11 +242,11 @@ export const deleteStudentFromBatch = expressasyncHandler(async (req, res, next)
     }
 })
 
-// get all batches where the tracher exists
+// get all batches where the teacher exists
 export const getAllBatchesForTeacher = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
-        const batches = await BatchModel.find({ teacherId: user._id })
+        const batches = await BatchModel.find({ teacherId: user._id, Organization: user.Organization })
             .sort({ createdAt: -1 })
             .populate("teacherId", { name: 1, email: 1 })
             .populate("students", { _id: 1, name: 1, email: 1, guardian: 1 });
@@ -241,7 +261,8 @@ export const getAllBatchesForTeacher = expressasyncHandler(async (req, res, next
 export const getBatchByIdForTeacher = expressasyncHandler(async (req, res, next) => {
     try {
         const { batchId } = req.params;
-        const batch = await BatchModel.findById(batchId)
+        const user = req.user;
+        const batch = await BatchModel.find({ _id: batchId, teacherId: user._id, Organization: user.Organization })
             .populate("teacherId", { name: 1, email: 1 })
             .populate("students", { _id: 1, name: 1, email: 1, guardian: 1 });
         return res.status(200).json({ batch });
@@ -255,7 +276,8 @@ export const getBatchByIdForTeacher = expressasyncHandler(async (req, res, next)
 export const getBatchByIdForStudent = expressasyncHandler(async (req, res, next) => {
     try {
         const { batchId } = req.params;
-        const batch = await BatchModel.findById(batchId)
+        const user = req.user;
+        const batch = await BatchModel.find({ _id: batchId, Organization: user.Organization })
             .populate("teacherId", { name: 1, email: 1 })
         return res.status(200).json({ batch });
     } catch (error) {
@@ -268,7 +290,11 @@ export const getBatchByIdForStudent = expressasyncHandler(async (req, res, next)
 export const getAllBatchesForStudent = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
-        const batches = await BatchModel.find({ students: { $in: [user._id] } }).select("_id name teacherId").sort({ createdAt: -1 }).populate("teacherId", { name: 1, email: 1 });
+        const batches = await BatchModel
+            .find({ students: { $in: [user._id] }, Organization: user.Organization })
+            .select("_id name teacherId")
+            .sort({ createdAt: -1 })
+            .populate("teacherId", { name: 1, email: 1 });
 
         return res.status(200).json({ batches });
     } catch (error) {
@@ -280,7 +306,8 @@ export const getAllBatchesForStudent = expressasyncHandler(async (req, res, next
 // get all batches
 export const getAllBatches = expressasyncHandler(async (req, res, next) => {
     try {
-        const batches = await BatchModel.find()
+        const user = req.user;
+        const batches = await BatchModel.find({ Organization: user.Organization })
             .sort({ createdAt: -1 })
             .populate("teacherId", { name: 1, email: 1 })
             .populate("students", { _id: 1, name: 1, email: 1, guardian: 1 });
@@ -310,6 +337,9 @@ export const deleteBatch = expressasyncHandler(async (req, res, next) => {
     if (batch.teacherId.toString() !== user._id.toString()) {
         return res.status(403).json({ message: "You are not authorized to delete this batch" });
     }
+
+    // delete all the attendance of the batch
+    await AttendanceModel.deleteMany({ batchId: batchId });
 
     // delete the batch
     await batch.deleteOne();

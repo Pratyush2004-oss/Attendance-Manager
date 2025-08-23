@@ -19,6 +19,11 @@ const UserSchema = new mongoose.Schema({
         enum: ['teacher', 'student'],
         required: true
     },
+    Organization: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Organization",
+        required: true
+    }],
     guardian: {
         name: {
             type: String,
