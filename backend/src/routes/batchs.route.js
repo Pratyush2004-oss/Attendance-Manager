@@ -1,11 +1,12 @@
 import express from 'express';
 import { AuthMiddleware, VerifyStudent, VerifyTeacher } from '../middleware/auth.middleware.js';
-import { addStudentsByTeacher, addStudentUsingCode, createBatch, deleteBatch, deleteStudentFromBatch, getAllBatchesByName, getAllBatchesForStudent, getAllBatchesForTeacher, getAllStudentList, getBatchByIdForStudent, getBatchByIdForTeacher, getStudentById } from '../controllers/batches.controller.js';
+import { addStudentsByTeacher, addStudentUsingCode, createBatch, deleteBatch, deleteStudentFromBatch, getAllBatchesByName, getAllBatchesForStudent, getAllBatchesForTeacher, getAllStudentList, getAllStudentsOfBatch, getBatchByIdForStudent, getBatchByIdForTeacher, getStudentById } from '../controllers/batches.controller.js';
 
 const router = express.Router();
 
 router.get("/get-student-list", AuthMiddleware, VerifyTeacher, getAllStudentList);
 router.post('/get-sudent-by-id', AuthMiddleware, VerifyTeacher, getStudentById);
+router.get("/get-students-of-batch", AuthMiddleware, VerifyTeacher, getAllStudentsOfBatch);
 router.post("/get-batches-by-name", AuthMiddleware, VerifyStudent, getAllBatchesByName);
 router.post("/create-batch", AuthMiddleware, VerifyTeacher, createBatch);
 router.post("/add-students-to-batch", AuthMiddleware, VerifyTeacher, addStudentsByTeacher);

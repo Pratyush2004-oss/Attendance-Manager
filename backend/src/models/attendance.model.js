@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const AttendenceSchema = new mongoose.Schema({
+const AttendanceSchema = new mongoose.Schema({
     studentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -15,7 +15,7 @@ const AttendenceSchema = new mongoose.Schema({
         ref: "Batch",
         required: true
     },
-    record: [
+    records: [
         {
             studentId: {
                 type: mongoose.Schema.Types.ObjectId,
@@ -31,6 +31,6 @@ const AttendenceSchema = new mongoose.Schema({
     ]
 }, { timestamps: true });
 
-const AttendenceModel = mongoose.model("Attendence", AttendenceSchema);
+const AttendanceModel = mongoose.model("Attendence", AttendanceSchema);
 
-export default AttendenceModel;
+export default AttendanceModel;

@@ -26,6 +26,26 @@ export const getStudentById = expressasyncHandler(async (req, res, next) => {
     }
 })
 
+// get all students of the perticular batch only by its teacher
+export const getAllStudentsOfBatch = expressasyncHandler(async (req, res, next) => {
+    try {
+        const user = req.user;
+        const { batchId } = req.params;
+
+        const batch = await BatchModel.findOne({ _id: batchId, teacherId: user._id })
+            .populate("studentIds", "name email guardian _id")
+            .populate("teacherId", "name email _id");
+        if (!batch) {
+            return res.status(404).json({ message: "Batch not found" });
+        }
+        return res.status(200).json({ batch });
+
+    } catch (error) {
+        console.log("Error in getAllStudentsOfBatch controller: " + error);
+        next(error);
+    }
+})
+
 // get all the batches by name for the students so they can see that
 export const getAllBatchesByName = expressasyncHandler(async (req, res, next) => {
     try {
@@ -80,7 +100,7 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
             return res.status(400).json({ message: "Batch ID is required" });
         }
 
-        if (!studentIds) {
+        if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
             return res.status(400).json({ message: "At least one student ID is required" });
         }
 
