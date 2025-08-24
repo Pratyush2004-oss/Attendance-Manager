@@ -14,8 +14,11 @@ export const markAttendance = expressAsyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
         const { date, batchId, records } = req.body;
-        // START DEBUGGING HERE
-        console.log('Received request body:', JSON.stringify(req.body, null, 2));
+
+        if (!req.body) {
+            return res.status(400).json({ message: 'Request body is empty' });
+        }
+
         if (!batchId || !date || !records || !Array.isArray(records) || records.length === 0) {
             return res.status(400).json({ message: "BatchId , Date and records are required" })
         }
@@ -57,6 +60,12 @@ export const markAttendance = expressAsyncHandler(async (req, res, next) => {
         const invalidStudentIds = studentIds.filter(studentId => !batch.students.includes(studentId));
         if (invalidStudentIds.length > 0) {
             return res.status(400).json({ message: `Invalid studentIds: ${invalidStudentIds.join(", ")}` });
+        }
+
+        // check for the status of every record that it is (present, absent or leave)
+        const invalidStatuses = records.filter(record => record.status !== "present" && record.status !== "absent" && record.status !== "leave");
+        if (invalidStatuses.length > 0) {
+            return res.status(400).json({ message: `Invalid statuses: ${invalidStatuses.map(record => record.status).join(", ")}` });
         }
 
         const attendanceDocument = await AttendanceModel.findOneAndUpdate(

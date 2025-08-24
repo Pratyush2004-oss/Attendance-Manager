@@ -22,7 +22,7 @@ export const AuthMiddleware = expressAsyncHandler(async (req, res, next) => {
             if (!decoded) {
                 return res.status(401).json({ message: "Invalid token, access denied" });
             }
-            const user = await UserModel.findById(decoded.id).select("-password");
+            const user = await UserModel.findById(decoded.id).select("-password").populate("Organization", { name: 1, _id: 1 });
             if (!user) {
                 return res.status(401).json({ message: "Unauthorized, user not found" });
             }

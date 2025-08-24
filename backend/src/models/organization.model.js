@@ -8,7 +8,7 @@ const OrganizationSchema = new mongoose.Schema({
     },
     adminIds: [
         {
-            type: "string",
+            type: String,
             required: true
         }
     ]

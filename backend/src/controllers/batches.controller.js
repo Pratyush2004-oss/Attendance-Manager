@@ -8,7 +8,7 @@ import AttendanceModel from "../models/attendance.model.js";
 export const getAllStudentList = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
-        const students = await UserModel.find({ role: "student", isVerified: true, organization: { $in: user.organization } }).select("_id name email guardian");
+        const students = await UserModel.find({ role: "student", isVerified: true, Organization: { $in: user.Organization } }).select("_id name email guardian");
         return res.status(200).json({ students });
     } catch (error) {
         console.log("Error in getAllStudentList controller: " + error);
@@ -19,8 +19,9 @@ export const getAllStudentList = expressasyncHandler(async (req, res, next) => {
 // get student by student id
 export const getStudentById = expressasyncHandler(async (req, res, next) => {
     try {
+        const user = req.user;
         const { studentId } = req.body;
-        const student = await UserModel.findById(studentId).select("_id name email guardian");
+        const student = await UserModel.find({ _id: studentId, role: "student", isVerified: true, Organization: { $in: user.Organization } }).select("_id name email guardian");
         return res.status(200).json({ student });
     } catch (error) {
         console.log("Error in getStudentById controller: " + error);
@@ -51,8 +52,9 @@ export const getAllStudentsOfBatch = expressasyncHandler(async (req, res, next) 
 // get all the batches by name for the students so they can see that
 export const getAllBatchesByName = expressasyncHandler(async (req, res, next) => {
     try {
+        const user = req.user;
         const { batchName } = req.body;
-        const batches = await BatchModel.find({ name: batchName }).populate("teacherId").sort({ createdAt: -1 });
+        const batches = await BatchModel.find({ name: batchName, Organization: { $in: user.Organization } }).populate("teacherId").sort({ createdAt: -1 });
         return res.status(200).json({ batches });
     } catch (error) {
         console.log("Error in getAllBatchesByName controller: " + error);
@@ -64,20 +66,23 @@ export const getAllBatchesByName = expressasyncHandler(async (req, res, next) =>
 export const createBatch = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
+        console.log(user);
         const { name, Organization } = req.body;
 
         if (!name || !Organization) {
             return res.status(400).json({ message: "Batch name and Organization is required" });
         }
 
-        if (!user.organization.includes(Organization)) {
-            return res.status(400).json({ message: "This Organization is not associated with your account" });
+        // check whether the Organization id also associated to the user
+        if (!user.Organization.some((org) => org.equals(Organization))) {
+            return res.status(400).json({ message: "Organization is not associated to the user" });
         }
 
+        // check if the batch name already exists
         const batch = await BatchModel.find({
             teacherId: user._id,
             name: name,
-            Organization: { $in: user.organization }
+            Organization: { $in: user.Organization }
         });
 
         if (batch.length > 0) {
@@ -121,12 +126,15 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
             return res.status(403).json({ message: "You are not authorized to add students to this batch" });
         }
 
+        // check for the students who have same OrganizationIds as batch
+
+
         for (const studentId in studentIds) {
             if (mongoose.Types.ObjectId.isValid(studentIds[studentId])) {
                 const objectId = new mongoose.Types.ObjectId(studentIds[studentId]);
                 const student = await UserModel.findById(objectId);
                 if (student) {
-                    if (student.role === "student" && student.isVerified && student.organization.includes(batch.Organization)) {
+                    if (student.role === "student" && student.isVerified && student.Organization.includes(batch.Organization)) {
                         if (!batch.students.includes(student._id)) {
                             batch.students.push(student._id);
                         }
@@ -139,7 +147,7 @@ export const addStudentsByTeacher = expressasyncHandler(async (req, res, next) =
 
         await batch.save();
 
-        return res.status(200).json({ message: "All Valid Students added to batch successfully, Invalid enteries are ignored" });
+        return res.status(200).json({ message: "All Valid Students added to batch successfully, Invalid enteries are ignored", batch });
 
     } catch (error) {
         console.log("Error in addStudentsByTeacher controller: " + error);
@@ -166,8 +174,8 @@ export const addStudentUsingCode = expressasyncHandler(async (req, res, next) =>
         }
 
         // check if the student and batch are in the same organization
-        if (!user.organization.includes(batch.Organization)) {
-            return res.status(400).json({ message: "You are not authorized to add students to this batch" });
+        if (!user.Organization.some((org) => org.equals(batch.Organization))) {
+            return res.status(400).json({ message: "You are not authorized to join this batch" });
         }
 
         if (batch.students.includes(user._id)) {
@@ -303,14 +311,14 @@ export const getAllBatchesForStudent = expressasyncHandler(async (req, res, next
     }
 })
 
-// get all batches
-export const getAllBatches = expressasyncHandler(async (req, res, next) => {
+// get all batches of the organization for students only
+export const getAllBatchesofOrganization = expressasyncHandler(async (req, res, next) => {
     try {
         const user = req.user;
         const batches = await BatchModel.find({ Organization: user.Organization })
+            .select("_id name teacherId")
             .sort({ createdAt: -1 })
             .populate("teacherId", { name: 1, email: 1 })
-            .populate("students", { _id: 1, name: 1, email: 1, guardian: 1 });
         return res.status(200).json({ batches });
     } catch (error) {
         console.log("Error in getAllBatches controller: " + error);

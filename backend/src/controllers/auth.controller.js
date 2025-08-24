@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import sendOtpEmail from "../service/emailService.js";
 import { ENV } from "../config/env.js";
 import expressAsyncHandler from "express-async-handler";
+import OrganizationModel from "../models/organization.model.js";
 
 const generateToken = (id) => {
     return jwt.sign({ id }, ENV.JWT_SECRET, {
@@ -13,16 +14,30 @@ const generateToken = (id) => {
 
 export const registerUser = expressAsyncHandler(async (req, res, next) => {
     try {
-        const { name, email, password, Organization, role, gurdianName, gurdianNumber } = req.body;
+        const { name, email, password, Organization, role, guardianName, guardianNumber } = req.body;
 
         // validation
         if (!name || !email || !password || !role || !Organization) {
             return res.status(400).json({ error: "All fields are required" });
         }
+
+        // check if the role is strudent then guardian details are also required
+        if (role === "student" && (!guardianName || !guardianNumber)) {
+            return res.status(400).json({ error: "For students, guardian name and number are required" });
+        }
+
         // check for existing user
         const existingUser = await UserModel.findOne({ email });
         if (existingUser) {
             return res.status(400).json({ error: "User already exists" });
+        }
+
+        // check for the organization
+        for (let org of Organization) {
+            const organization = await OrganizationModel.findById(org);
+            if (!organization) {
+                return res.status(400).json({ error: "Organization not found" });
+            }   
         }
 
         // hash password
@@ -43,8 +58,8 @@ export const registerUser = expressAsyncHandler(async (req, res, next) => {
                 password: hashedPassword,
                 role,
                 guardian: {
-                    name: gurdianName,
-                    number: gurdianNumber
+                    name: guardianName,
+                    number: guardianNumber
                 },
                 Organization,
                 otp
@@ -67,7 +82,8 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
         if (!email || !otp) {
             return res.status(400).json({ error: "Please provide email and otp" });
         }
-        const user = await UserModel.findOne({ email });
+        const user = await UserModel.findOne({ email })
+            .populate("Organization", { name: 1 });
         if (!user) {
             return res.status(400).json({ error: "User not found" });
         }
@@ -95,7 +111,8 @@ export const verifyUser = expressAsyncHandler(async (req, res, next) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                guardian: user.guardian
+                guardian: user.guardian,
+                Organization: user.Organization
             }
         });
 
@@ -113,7 +130,8 @@ export const loginUser = expressAsyncHandler(async (req, res, next) => {
             return res.status(400).json({ error: "Please provide email and password" });
         }
         // check for user
-        const user = await UserModel.findOne({ email });
+        const user = await UserModel.findOne({ email })
+            .populate("Organization", { name: 1 });
         if (!user) {
             return res.status(400).json({ error: "Invalid credentials" });
         }
@@ -133,7 +151,8 @@ export const loginUser = expressAsyncHandler(async (req, res, next) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                guardian: user.guardian
+                guardian: user.guardian,
+                Organization: user.Organization
             }
         });
 
@@ -207,7 +226,8 @@ export const checkAuth = expressAsyncHandler(async (req, res, next) => {
                 email: user.email,
                 role: user.role,
                 isVerified: user.isVerified,
-                guardian: user.guardian
+                guardian: user.guardian,
+                Organization: user.Organization
             }
         });
 
