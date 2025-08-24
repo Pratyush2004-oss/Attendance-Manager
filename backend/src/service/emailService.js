@@ -12,7 +12,7 @@ apiInstance.authentications['apiKey'].apiKey = ENV.BREVO_API_KEY;
  * @param {string} recipientEmail - The email address of the recipient.
  * @param {string} recipientName - The name of the recipient.
  * @param {string} otp - The one-time password to be sent.
- * @returns {Promise<string>} - True if email was sent successfully, false otherwise.
+ * @returns {Promise<boolean>} - True if email was sent successfully, false otherwise.
  */
 
 async function sendOtpEmail(recipientEmail, recipientName, otp) {
@@ -21,7 +21,7 @@ async function sendOtpEmail(recipientEmail, recipientName, otp) {
 
   sendSmtpEmail.sender = {
     name: 'Attandance App', // Name of the sender
-    email: 'no-reply@yourdomain.com' // IMPORTANT: This should be a verified sender email in Brevo
+    email: 'mishrapratyush521@gmail.com' // IMPORTANT: This should be a verified sender email in Brevo
   };
   sendSmtpEmail.to = [{
     email: recipientEmail,
@@ -46,9 +46,15 @@ async function sendOtpEmail(recipientEmail, recipientName, otp) {
   // 4. Send the email
   try {
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-    return "Email sent successfully, message ID: " + data.messageId;
+    return {
+      success: true,
+      message: "Email sent successfully"
+    };
   } catch (error) {
-    return "Error sending email: " + error.message;
+    return {
+      success: false,
+      message: "Failed to send email"
+    };
   }
 }
 
