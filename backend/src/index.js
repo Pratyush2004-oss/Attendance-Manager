@@ -15,7 +15,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const PORT = ENV.PORT;
+
+app.get("/", (req, res) => {
+    res.send("Attendance-Manager is now Live");
+})
 
 app.use('/api/auth', authRoutes);
 app.use('/api/batch', batchRoutes);
@@ -27,7 +30,18 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: `Error in server : ${err.message}` || "Internal Server Error" })
 })
 
-app.listen(PORT, () => {
-    connectDB();
-    console.log(`Server running on port ${PORT}`)
-});
+const startServer = async () => {
+    try {
+        await connectDB();
+        // listen to local development
+        if (ENV.NODE_ENV !== 'production') {
+            app.listen(ENV.PORT, () => {
+                console.log(`Server listening on port ${ENV.PORT}`);
+            })
+        }
+    } catch (error) {
+        console.log("Failed to start Server:" + error.message);
+        process.exit(1);
+    }
+}
+startServer();
