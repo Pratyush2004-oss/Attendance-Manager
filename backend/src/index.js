@@ -9,7 +9,6 @@ import batchRoutes from './routes/batchs.route.js';
 import attendanceRoute from './routes/attendance.router.js';
 import organizationRoute from "./routes/organization.route.js";
 
-
 const app = express();
 
 app.use(cors());
