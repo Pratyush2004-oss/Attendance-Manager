@@ -35,11 +35,26 @@ export type UserType = {
   };
 };
 
-export type BatchType = {
+export type BatchForStudentType = {
   _id: string;
   name: string;
   Organization: string;
-  teacherId: string;
+  teacherId: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+};
+
+export type BatchForTeacherType = {
+  _id: string;
+  name: string;
+  Organization: string;
+  teacherId: {
+    _id: string;
+    name: string;
+    email: string;
+  };
   students: string[];
 };
 
@@ -49,11 +64,14 @@ export type OrganizationType = {
 };
 
 export type AttendanceForStudentType = {
-  studentId: string;
+  _id: string;
   date: Date;
-  batchId: string;
-  record: {
-    studentId: string;
+  batchName: string;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  attendanceRecords: {
+    date: Date;
     status: "present" | "absent" | "leave";
   }[];
-}
+};
