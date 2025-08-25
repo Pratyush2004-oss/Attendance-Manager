@@ -1,12 +1,12 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 
-const Login = () => {
+const BatchList = () => {
   return (
     <View>
-      <Text>Login</Text>
+      <Text>BatchList</Text>
     </View>
   )
 }
 
-export default Login
+export default BatchList

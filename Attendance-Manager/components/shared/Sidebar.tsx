@@ -1,12 +1,10 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 
-const Login = () => {
+export default function Sidebar() {
   return (
     <View>
-      <Text>Login</Text>
+      <Text>Sidebar</Text>
     </View>
   )
 }
-
-export default Login
