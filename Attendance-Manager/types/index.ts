@@ -7,8 +7,8 @@ export type signupInputType = {
   name: string;
   email: string;
   password: string;
-  role: ["student", "teacher"];
-  Organization: string;
+  role: "student" | "teacher" |"";
+  Organization: string[];
 };
 
 export type verifyEmailInputType = {
